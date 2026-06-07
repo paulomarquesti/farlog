@@ -1,48 +1,48 @@
-// Configurações do Supabase (Substitua com os dados do seu projeto)
-const SUPABASE_URL = "SUA_SUPABASE_URL_AQUI";
-const SUPABASE_KEY = "SUA_SUPABASE_ANON_KEY_AQUI";
+// 1. Configurações do seu projeto Supabase
+const SUPABASE_URL = "https://sykxvatnzlewhsnkpmri.supabase.co";
+const SUPABASE_KEY = "sb_publishable_U_0A502RJVpMicdn9-RZpw_05nxsVvU";
 
-// Inicializa o cliente do Supabase
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 2. Criação do cliente usando o escopo global direto fornecido pela CDN
+// O objeto global injetado pela CDN se chama 'supabase', e a função é 'createClient'
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Captura os elementos da tela
+// 3. Captura dos elementos HTML da tela de login
 const loginForm = document.getElementById('login-form');
 const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
 const errorMessage = document.getElementById('error-message');
 
-// Evento de envio do formulário
+// 4. Escutador do evento de clique no botão "Entrar"
 loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Evita que a página recarregue
+    e.preventDefault(); // Impede o recarregamento automático da página
     
     const email = emailInput.value;
     const password = passwordInput.value;
     
-    // Limpa mensagens de erro anteriores
+    // Reseta o estado do alerta de erro visual
     errorMessage.classList.add('hidden');
     errorMessage.textContent = '';
 
     try {
-        // Tenta fazer o login usando a API do Supabase
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // Realiza a chamada de autenticação para o banco de dados
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
             email: email,
             password: password,
         });
 
         if (error) {
-            // Se o Supabase retornar erro (senha errada, usuário não existe, etc)
+            // Caso o e-mail ou a senha estejam incorretos no banco
             errorMessage.textContent = "Login inválido: " + error.message;
             errorMessage.classList.remove('hidden');
         } else {
-            // Sucesso! Usuário autenticado com sucesso
-            console.log('Usuário logado:', data.user);
-            
-            // Redireciona para a tela do painel principal (que vamos criar a seguir)
+            // Caso as credenciais estejam 100% corretas
+            console.log('Usuário autenticado!', data.user);
             window.location.href = 'painel.html';
         }
     } catch (err) {
-        console.error('Erro inesperado:', err);
-        errorMessage.textContent = 'Ocorreu um erro ao tentar conectar.';
+        // Exibe no console o erro técnico real para debug
+        console.error('Erro de execução:', err);
+        errorMessage.textContent = 'Erro ao tentar se comunicar com o servidor de autenticação.';
         errorMessage.classList.remove('hidden');
     }
 });
