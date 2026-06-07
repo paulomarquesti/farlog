@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarLog - Entrega</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+        body { background-color: #111827; color: white; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
+        .card-mobile { background-color: #1f2937; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); text-align: center; }
+        h2 { color: #10b981; margin-bottom: 1.5rem; font-size: 1.8rem; }
+        .info-box { background-color: #374151; padding: 1rem; border-radius: 8px; text-align: left; margin-bottom: 2rem; font-size: 1.1rem; line-height: 1.6rem; }
+        .info-box strong { color: #9ca3af; font-size: 0.9rem; text-transform: uppercase; display: block; margin-top: 0.5rem; }
+        .btn-mobile { width: 100%; padding: 1.5rem; font-size: 1.3rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; text-transform: uppercase; transition: transform 0.1s; }
+        .btn-mobile:active { transform: scale(0.98); }
+        .btn-checkin { background-color: #fbbf24; color: #111827; } /* Amarelo */
+        .btn-success { background-color: #10b981; color: white; } /* Verde */
+        .msg-sucesso { color: #10b981; font-size: 1.4rem; font-weight: bold; margin-top: 1rem; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="card-mobile">
+        <h2>FarLog 🏍️💨</h2>
+        
+        <div id="loading">Carregando dados da entrega...</div>
+        
+        <div id="conteudo-entrega" class="hidden">
+            <div class="info-box">
+                <strong>Endereço de Destino:</strong>
+                <span id="txt-endereco">Carregando...</span>
+                
+                <strong>Forma de Pagamento:</strong>
+                <span id="txt-pagamento">Carregando...</span>
+            </div>
+
+            <button id="btn-cheguei" class="btn-mobile btn-checkin">📍 Cheguei ao Local</button>
+
+            <button id="btn-concluido" class="btn-mobile btn-success hidden">✅ Finalizar Entrega</button>
+            
+            <div id="feedback-sucesso" class="msg-sucesso hidden">🎉 Entrega concluída com sucesso! Pode voltar para a loja.</div>
+        </div>
+    </div>
+
+    <script src="entrega.js"></script>
+</body>
+</html>
