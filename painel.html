@@ -8,106 +8,214 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
 </head>
 <body>
+
     <header class="main-header">
-        <h1>FarLog 🏍️💨</h1>
+        <div class="header-left">
+            <h2>FarLog 🏍️💨 <span class="system-badge">Painel Administrativo</span></h2>
+        </div>
         <div class="user-info">
-            <span id="user-email">Carregando usuário...</span>
+            <span id="user-email">Carregando...</span>
             <button id="btn-logout">Sair</button>
         </div>
     </header>
 
-    <main class="dashboard-container">
-        <section class="card">
-            <h3>👥 Cadastrar Entregador</h3>
-            <form id="form-entregador">
-                <div class="input-group">
-                    <label for="nome-entregador">Nome do Profissional</label>
-                    <input type="text" id="nome-entregador" placeholder="Ex: João Silva" required>
-                </div>
-                <div class="input-group">
-                    <label for="whatsapp-entregador">WhatsApp (Com DDD)</label>
-                    <input type="tel" id="whatsapp-entregador" placeholder="Ex: 21999999999" required>
-                </div>
-                <div class="input-group">
-                    <label for="veiculo-entregador">Veículo Padrão</label>
-                    <select id="veiculo-entregador" required>
-                        <option value="Moto">Moto</option>
-                        <option value="Bicicleta">Bicicleta</option>
-                    </select>
-                </div>
-                <div class="input-group" id="group-autonomia">
-                    <label for="autonomia-moto">Autonomia da Moto (km/L)</label>
-                    <input type="number" id="autonomia-moto" value="30" step="0.1">
-                </div>
-                <button type="submit" class="btn-success">Salvar Entregador</button>
-            </form>
-
-            <hr>
-
-            <h3>Lista de Entregadores</h3>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>Veículo</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-entregadores">
-                    </tbody>
-            </table>
-        </section>
-
-        <section class="card">
-            <h3>📦 Nova Saída de Pedido</h3>
-            <form id="form-entrega">
-                <div class="input-group">
-                    <label for="endereco-entrega">Endereço de Destino</label>
-                    <input type="text" id="endereco-entrega" placeholder="Rua, Número, Bairro" required>
-                </div>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <nav class="sidebar-menu">
+                <button class="menu-btn active" data-tab="tab-home">🏠 Home</button>
+                <button class="menu-btn" data-tab="tab-entregas">📦 Entregas</button>
                 
-                <div class="input-group">
-                    <label for="seletor-entregador">Selecionar Entregador Disponível</label>
-                    <select id="seletor-entregador" required>
-                        <option value="">Selecione...</option>
-                        </select>
+                <div class="menu-group">
+                    <button class="menu-btn toggle-submenu-btn">📝 Cadastros <span class="arrow">▼</span></button>
+                    <ul class="submenu hidden">
+                        <li><button class="menu-btn submenu-item" data-tab="tab-cadastro-entregadores">👥 Entregadores</button></li>
+                        <li><button class="menu-btn submenu-item" data-tab="tab-cadastro-clientes">🏪 Clientes (Breve)</button></li>
+                    </ul>
                 </div>
 
-                <div class="row">
-                    <div class="input-group flex-1">
-                        <label for="veiculo-entrega">Veículo para esta Rota</label>
-                        <select id="veiculo-entrega" required>
-                            <option value="Moto">Moto</option>
-                            <option value="Bicicleta">Bicicleta</option>
-                        </select>
+                <button class="menu-btn" data-tab="tab-metricas">📊 Métricas / Dashboard</button>
+                <button class="menu-btn" data-tab="tab-config">⚙️ Configurações</button>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            
+            <section id="tab-home" class="tab-content">
+                <h2>Visão Geral Operacional</h2>
+                <p class="welcome-msg">Bem-vindo ao painel, FarLog!</p>
+                
+                <div class="metrics-row">
+                    <div class="mini-card blue">
+                        <h4>Na Rua Agora</h4>
+                        <p id="metric-na-rua">0</p>
                     </div>
-                    <div class="input-group flex-1">
-                        <label for="pagamento-entrega">Forma de Pagamento / Troco</label>
-                        <input type="text" id="pagamento-entrega" placeholder="Ex: Cartão ou Dinheiro troco p/ 50" required>
+                    <div class="mini-card green">
+                        <h4>Entregadores Livres</h4>
+                        <p id="metric-livres">0</p>
+                    </div>
+                    <div class="mini-card amber">
+                        <h4>Entregas do Dia</h4>
+                        <p id="metric-total-dia">0</p>
                     </div>
                 </div>
 
-                <button type="submit" class="btn-primary">Despachar e Gerar Link WhatsApp</button>
-            </form>
+                <div class="map-placeholder">
+                    <p>📍 [Espaço Reservado para o Mapa de Rotas em Tempo Real]</p>
+                </div>
+            </section>
 
-            <hr>
+            <section id="tab-entregas" class="tab-content hidden">
+                <h2>Operação de Entregas</h2>
+                <div class="operations-grid">
+                    <div class="card">
+                        <h3>📦 Nova Saída de Pedido</h3>
+                        <form id="form-entrega">
+                            <div class="input-group">
+                                <label for="endereco-entrega">Endereço de Destino</label>
+                                <input type="text" id="endereco-entrega" placeholder="Rua, Número, Bairro" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="seletor-entregador">Selecionar Entregador Disponível</label>
+                                <select id="seletor-entregador" required>
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                            <div class="row">
+                                <div class="input-group flex-1">
+                                    <label for="veiculo-entrega">Veículo para a Rota</label>
+                                    <select id="veiculo-entrega" required>
+                                        <option value="Moto">Moto</option>
+                                        <option value="Bicicleta">Bicicleta</option>
+                                    </select>
+                                </div>
+                                <div class="input-group flex-1">
+                                    <label for="pagamento-entrega">Forma de Pagamento</label>
+                                    <input type="text" id="pagamento-entrega" placeholder="Ex: Cartão ou Troco para R$ 50" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary">Despachar e Enviar WhatsApp</button>
+                        </form>
+                    </div>
 
-            <h3>Monitor de Entregas Ativas (Na Rua)</h3>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Destino</th>
-                        <th>Entregador</th>
-                        <th>Pagamento</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-entregas-ativas">
-                    </tbody>
-            </table>
-        </section>
-    </main>
+                    <div class="card">
+                        <h3>Monitor de Entregas Ativas (Na Rua)</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Destino</th>
+                                    <th>Entregador</th>
+                                    <th>Pagamento</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-entregas-ativas"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
+            <section id="tab-cadastro-entregadores" class="tab-content hidden">
+                <h2>Gerenciamento de Entregadores</h2>
+                <div class="operations-grid">
+                    <div class="card">
+                        <h3>👥 Cadastrar Novo Entregador</h3>
+                        <form id="form-entregador">
+                            <div class="input-group">
+                                <label for="nome-entregador">Nome do Profissional</label>
+                                <input type="text" id="nome-entregador" placeholder="Ex: João Silva" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="whatsapp-entregador">WhatsApp (Com DDD)</label>
+                                <input type="tel" id="whatsapp-entregador" placeholder="Ex: 21999999999" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="veiculo-entregador">Veículo Padrão</label>
+                                <select id="veiculo-entregador" required>
+                                    <option value="Moto">Moto</option>
+                                    <option value="Bicicleta">Bicicleta</option>
+                                </select>
+                            </div>
+                            <div class="input-group" id="group-autonomia">
+                                <label for="autonomia-moto">Autonomia da Moto (km/L)</label>
+                                <input type="number" id="autonomia-moto" value="30" step="0.1">
+                            </div>
+                            <button type="submit" class="btn-success">Salvar Entregador</button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <h3>Equipe Cadastrada</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Veículo</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-entregadores"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-cadastro-clientes" class="tab-content hidden">
+                <h2>Cadastro de Clientes</h2>
+                <p>Esta funcionalidade será integrada futuramente para vincular pedidos a clientes recorrentes da farmácia.</p>
+            </section>
+
+            <section id="tab-metricas" class="tab-content hidden">
+                <h2>Métricas & Dashboard Administrativo</h2>
+                <p>Aqui ficará o consolidado de custos com combustível, faturamento de taxas e relatórios de tempo de entrega (SLA).</p>
+            </section>
+
+            <section id="tab-config" class="tab-content hidden">
+                <h2>Configurações Gerais</h2>
+                <p>Definições do sistema, preço base do combustível para cálculos e gerenciamento de permissões.</p>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        const menuButtons = document.querySelectorAll('.menu-btn:not(.toggle-submenu-btn)');
+        const toggleSubmenuBtn = document.querySelector('.toggle-submenu-btn');
+        const submenu = document.querySelector('.submenu');
+        const arrow = document.querySelector('.arrow');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // 1. Lógica para Abrir e Fechar o submenu de Cadastros
+        toggleSubmenuBtn.addEventListener('click', () => {
+            const isHidden = submenu.classList.toggle('hidden');
+            arrow.textContent = isHidden ? '▼' : '▲';
+        });
+
+        // 2. Lógica para Mudar de Aba ativa
+        menuButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetTab = btn.getAttribute('data-tab');
+                if (!targetTab) return;
+
+                // Remove classe ativa de todos os botões e adiciona no atual
+                document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Se o botão clicado NÃO for um item de dentro do submenu, fecha o submenu de cadastros automaticamente
+                if (!btn.classList.contains('submenu-item')) {
+                    submenu.classList.add('hidden');
+                    arrow.textContent = '▼';
+                }
+
+                // Alterna a exibição dos conteúdos
+                tabContents.forEach(content => {
+                    content.classList.add('hidden');
+                    if (content.id === targetTab) {
+                        content.classList.remove('hidden');
+                    }
+                });
+            });
+        });
+    </script>
     <script src="painel.js"></script>
 </body>
 </html>

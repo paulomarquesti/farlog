@@ -9,200 +9,180 @@
 body {
     background-color: #f3f4f6;
     color: #1f2937;
-    min-height: 100vh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column; /* Organiza o Header em cima e o resto embaixo */
+    overflow: hidden;
 }
 
-/* --- TOPO DO PAINEL (HEADER) --- */
+/* --- HEADER SUPERIOR AZUL INTEGRAL (CRUZA A TELA TODA) --- */
 .main-header {
-    background-color: #1e3a8a; /* Azul Escuro */
+    background-color: #1e3a8a; /* Azul Escuro Original */
     color: white;
-    padding: 1rem 2rem;
+    height: 65px;
+    padding: 0 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+    z-index: 10; /* Garante que fica por cima de tudo */
 }
 
-.main-header h1 {
-    font-size: 1.5rem;
+.main-header h2 {
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.system-badge {
+    background-color: #1d4ed8;
+    color: #93c5fd;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
 }
 
 .user-info {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
-.user-info span {
+#user-email {
     font-size: 0.9rem;
-    background-color: #1d4ed8;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
+    color: #93c5fd;
+    font-weight: 600;
 }
 
 #btn-logout {
-    background-color: #ef4444; /* Vermelho */
+    background-color: #ef4444;
     color: white;
     border: none;
     padding: 0.4rem 0.8rem;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
+    font-size: 0.85rem;
     transition: background 0.2s;
 }
 
-#btn-logout:hover {
-    background-color: #b91c1c;
-}
+#btn-logout:hover { background-color: #b91c1c; }
 
-/* --- ESTRUTURA DE COLUNAS (DASHBOARD) --- */
-.dashboard-container {
-    max-width: 1300px;
-    margin: 2rem auto;
-    padding: 0 1rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Divide a tela exatamente ao meio */
-    gap: 2rem;
-}
-
-/* Se ficar em telas pequenas (como celular do gerente), vira uma coluna só */
-@media (max-width: 900px) {
-    .dashboard-container {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* --- CARDS (AS SEÇÕES BRANCAS) --- */
-.card {
-    background-color: #ffffff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.card h3 {
-    color: #1e3a8a;
-    margin-bottom: 1.2rem;
-    font-size: 1.2rem;
-    border-left: 4px solid #10b981; /* Detalhe verde na lateral do título */
-    padding-left: 0.5rem;
-}
-
-hr {
-    border: 0;
-    height: 1px;
-    background: #e5e7eb;
-    margin: 2rem 0;
-}
-
-/* --- FORMULÁRIOS --- */
-.input-group {
-    margin-bottom: 1rem;
-}
-
-.input-group label {
-    display: block;
-    margin-bottom: 0.4rem;
-    color: #4b5563;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.input-group input, 
-.input-group select {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.input-group input:focus, 
-.input-group select:focus {
-    border-color: #10b981;
-}
-
-/* Organização de inputs lado a lado */
-.row {
+/* --- DISPOSIÇÃO DO LAYOUT ABAIXO DO HEADER --- */
+.app-layout {
     display: flex;
-    gap: 1rem;
+    flex-grow: 1; /* Ocupa o restante da altura da tela */
+    height: calc(100vh - 65px);
+    width: 100vw;
 }
 
-.flex-1 {
-    flex: 1;
-}
-
-/* --- BOTÕES --- */
-button[type="submit"] {
-    width: 100%;
-    padding: 0.75rem;
+/* --- MENU LATERAL (SIDEBAR) --- */
+.sidebar {
+    width: 260px;
+    background-color: #111827; /* Cinza Escuro Quase Preto para dar contraste */
     color: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-right: 1px solid #1f2937;
+}
+
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 0;
+    gap: 0.25rem;
+}
+
+.menu-btn {
+    background: none;
     border: none;
-    border-radius: 6px;
-    font-size: 1rem;
+    color: #9ca3af; /* Letra cinza suave */
+    padding: 0.9rem 1.5rem;
+    text-align: left;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
-    margin-top: 0.5rem;
-}
-
-.btn-success {
-    background-color: #10b981; /* Verde */
-}
-
-.btn-success:hover {
-    background-color: #059669;
-}
-
-.btn-primary {
-    background-color: #1e3a8a; /* Azul */
-}
-
-.btn-primary:hover {
-    background-color: #1d4ed8;
-}
-
-/* --- TABELAS DE DADOS --- */
-.data-table {
     width: 100%;
-    border-collapse: collapse;
-    margin-top: 0.5rem;
+    display: flex;
+    justify-content: space-between; /* Alinha a seta do submenu na direita */
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.menu-btn:hover {
+    background-color: #1f2937;
+    color: white;
+}
+
+.menu-btn.active {
+    background-color: #10b981; /* Verde farmacêutico ativo */
+    color: white;
+}
+
+/* --- SUBMENU DE CADASTROS --- */
+.submenu {
+    list-style: none;
+    background-color: #1f2937; /* Fundo levemente mais claro que a sidebar */
+    padding: 0.25rem 0;
+}
+
+.submenu-item {
+    padding-left: 2.5rem; /* Recuo para hierarquia visual */
     font-size: 0.9rem;
+    color: #d1d5db;
 }
 
-.data-table th, 
-.data-table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.data-table th {
-    background-color: #f9fafb;
-    color: #4b5563;
-    font-weight: 600;
-}
-
-.data-table tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-/* --- BADGES DE STATUS (EFEITOS VISUAIS) --- */
-.status-badge {
-    padding: 0.2rem 0.5rem;
-    border-radius: 12px;
+.arrow {
     font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
+    color: #6b7280;
 }
 
-.status-disponivel { background-color: #d1fae5; color: #065f46; }
-.status-rota { background-color: #fef3c7; color: #92400e; }
-.status-inativo { background-color: #f3f4f6; color: #374151; }
-.status-pendente { background-color: #e0f2fe; color: #0369a1; }
-
-.hidden {
-    display: none !important;
+/* --- ÁREA DE CONTEÚDO CENTRAL --- */
+.main-content {
+    flex-grow: 1;
+    padding: 2rem;
+    overflow-y: auto;
 }
+
+.tab-content h2 { color: #1e3a8a; margin-bottom: 1.5rem; }
+.welcome-msg { color: #6b7280; margin-top: -1rem; margin-bottom: 1.5rem; }
+
+/* Grids Operacionais */
+.operations-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.card h3 { color: #1e3a8a; margin-bottom: 1rem; border-left: 4px solid #10b981; padding-left: 0.5rem; }
+
+/* Métricas da Home */
+.metrics-row { display: flex; gap: 1.5rem; margin-bottom: 2rem; }
+.mini-card { flex: 1; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-top: 5px solid #d1d5db; }
+.mini-card h4 { color: #6b7280; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;}
+.mini-card p { font-size: 2rem; font-weight: 700; color: #1f2937; }
+.mini-card.blue { border-top-color: #1d4ed8; }
+.mini-card.green { border-top-color: #10b981; }
+.mini-card.amber { border-top-color: #f59e0b; }
+
+.map-placeholder { background: #e5e7eb; height: 350px; border-radius: 12px; display: flex; justify-content: center; align-items: center; color: #4b5563; font-weight: 600; border: 2px dashed #9ca3af; }
+
+/* Componentes Básicos */
+.input-group { margin-bottom: 1rem; }
+.input-group label { display: block; margin-bottom: 0.4rem; color: #4b5563; font-size: 0.85rem; font-weight: 600; }
+.input-group input, .input-group select { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; outline: none; }
+.input-group input:focus, .input-group select:focus { border-color: #10b981; }
+.row { display: flex; gap: 1rem; }
+.flex-1 { flex: 1; }
+
+button[type="submit"] { width: 100%; padding: 0.75rem; color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 0.5rem; }
+.btn-success { background-color: #10b981; }
+.btn-success:hover { background-color: #059669; }
+.btn-primary { background-color: #1e3a8a; }
+.btn-primary:hover { background-color: #1d4ed8; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.data-table th { background-color: #f9fafb; color: #4b5563; }
+
+.hidden { display: none !important; }
