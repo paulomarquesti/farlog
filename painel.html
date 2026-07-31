@@ -6,6 +6,9 @@
     <title>FarLog - Painel de Controle</title>
     <link rel="stylesheet" href="painel.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js"></script>
+    <!-- CDN do Leaflet (CSS e JS) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -59,9 +62,7 @@
                     </div>
                 </div>
 
-                <div class="map-placeholder">
-                    <p>📍 [Espaço Reservado para o Mapa de Rotas em Tempo Real]</p>
-                </div>
+                <div id="map" style="height: 400px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"></div>
             </section>
 
             <section id="tab-entregas" class="tab-content hidden">
@@ -196,23 +197,26 @@
                 const targetTab = btn.getAttribute('data-tab');
                 if (!targetTab) return;
 
-                // Remove classe ativa de todos os botões e adiciona no atual
                 document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
-                // Se o botão clicado NÃO for um item de dentro do submenu, fecha o submenu de cadastros automaticamente
                 if (!btn.classList.contains('submenu-item')) {
                     submenu.classList.add('hidden');
                     arrow.textContent = '▼';
                 }
 
-                // Alterna a exibição dos conteúdos
+                // Exibe a aba correta
                 tabContents.forEach(content => {
                     content.classList.add('hidden');
                     if (content.id === targetTab) {
                         content.classList.remove('hidden');
                     }
                 });
+
+                // Se a aba selecionada for a Home, chama a renderização do mapa
+                if (targetTab === 'tab-home' && typeof inicializarMapa === 'function') {
+                    inicializarMapa();
+                }
             });
         });
     </script>
