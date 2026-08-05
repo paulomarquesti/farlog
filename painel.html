@@ -214,8 +214,9 @@
                 });
 
                 // Se a aba selecionada for a Home, chama a renderização do mapa
-                if (targetTab === 'tab-home' && typeof inicializarMapa === 'function') {
-                    inicializarMapa();
+                if (targetTab === 'tab-home') {
+                    if (typeof inicializarMapa === 'function') inicializarMapa();
+                    if (typeof carregarMetricasHome === 'function') carregarMetricasHome();
                 }
             });
         });

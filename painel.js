@@ -32,6 +32,7 @@ async function verificarSessao() {
         userEmailSpan.textContent = session.user.email;
         carregarEntregadores();
         carregarEntregasAtivas();
+        carregarMetricasHome();
         inicializarMapa();
     }
 }
@@ -143,6 +144,43 @@ formEntregador.addEventListener('submit', async (e) => {
 
     if (error) { alert('Erro: ' + error.message); } else { formEntregador.reset(); carregarEntregadores(); }
 });
+// --- ATUALIZAÇÃO DAS MÉTRICAS FLASH DA HOME ---
+async function carregarMetricasHome() {
+    try {
+        // 1. Entregas "Na Rua Agora"
+        const { count: countNaRua } = await supabaseClient
+            .from('entregas')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'Em Rota');
+
+        // 2. Entregadores "Livres" (Disponíveis)
+        const { count: countLivres } = await supabaseClient
+            .from('entregadores')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'Disponível');
+
+        // 3. Total de Entregas do Dia (Criadas a partir de meia-noite de hoje)
+        const inicioHoje = new Date();
+        inicioHoje.setHours(0, 0, 0, 0);
+
+        const { count: countTotalDia } = await supabaseClient
+            .from('entregas')
+            .select('*', { count: 'exact', head: true })
+            .gte('horario_saida', inicioHoje.toISOString());
+
+        // Atualiza os textos no HTML
+        const elNaRua = document.getElementById('metric-na-rua');
+        const elLivres = document.getElementById('metric-livres');
+        const elTotalDia = document.getElementById('metric-total-dia');
+
+        if (elNaRua) elNaRua.textContent = countNaRua || 0;
+        if (elLivres) elLivres.textContent = countLivres || 0;
+        if (elTotalDia) elTotalDia.textContent = countTotalDia || 0;
+
+    } catch (err) {
+        console.error('Erro ao carregar métricas da Home:', err);
+    }
+}
 
 async function carregarEntregadores() {
     const { data: entregadores, error } = await supabaseClient.from('entregadores').select('*').order('nome', { ascending: true });
@@ -232,6 +270,7 @@ formEntrega.addEventListener('submit', async (e) => {
     formEntrega.reset();
     carregarEntregadores();
     carregarEntregasAtivas();
+    carregarMetricasHome();
     inicializarMapa();
 });
 
@@ -281,6 +320,7 @@ window.forcarFinalizar = async (entregaId, entregadorId) => {
     
     carregarEntregadores();
     carregarEntregasAtivas();
+    carregarMetricasHome();
     inicializarMapa();
 };
 
@@ -292,6 +332,7 @@ window.cancelarEntrega = async (entregaId, entregadorId) => {
     
     carregarEntregadores();
     carregarEntregasAtivas();
+    carregarMetricasHome();
     inicializarMapa();
 };
 
