@@ -6,7 +6,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // CONFIGURAÇÕES OPERACIONAIS
 const CIDADE_PADRAO = "Rio de Janeiro, RJ, Brasil"; 
-const TEMPO_ATENDIMENTO_MIN = 5; // Tempo extra por cliente (portaria, elevador, pagamento)
+const TEMPO_ATENDIMENTO_MIN = 5;
 
 // COORDENADAS EXATAS DA SUA FARMÁCIA
 const LAT_FARMACIA = -22.959762324312493; 
@@ -26,9 +26,9 @@ const userEmailSpan = document.getElementById('user-email');
 const btnLogout = document.getElementById('btn-logout');
 const formEntregador = document.getElementById('form-entregador');
 const tabelaEntregadores = document.getElementById('tabela-entregadores');
-const seletorEntregador = document.getElementById('seletor-entregador');
 const formEntrega = document.getElementById('form-entrega');
 const tabelaEntregasAtivas = document.getElementById('tabela-entregas-ativas');
+const tabelaPedidosPendentes = document.getElementById('tabela-pedidos-pendentes');
 const veiculoSeletor = document.getElementById('veiculo-entregador');
 const groupAutonomia = document.getElementById('group-autonomia');
 
@@ -36,11 +36,11 @@ const pagamentoSeletor = document.getElementById('pagamento-entrega');
 const groupTroco = document.getElementById('group-troco');
 const trocoInput = document.getElementById('troco-para');
 
-// Variáveis de controle globais
 let mapaHome = null;
 let camadaMarcadores = null;
 let legendaControl = null;
 let idEntregaEmEdicao = null;
+let listaEntregadoresCache = [];
 
 // --- PROTETOR DE TELA E USUÁRIO ---
 async function verificarSessao() {
@@ -49,14 +49,13 @@ async function verificarSessao() {
         window.location.href = 'index.html';
     } else {
         userEmailSpan.textContent = session.user.email;
-        carregarEntregadores();
-        carregarEntregasAtivas();
+        await carregarEntregadores();
+        carregarFilaEEntregas();
         carregarMetricasHome();
         inicializarMapa();
     }
 }
 
-// CONTROLE DO CAMPO AUTONOMIA NO CADASTRO DE ENTREGADOR
 if (veiculoSeletor) {
     veiculoSeletor.addEventListener('change', () => {
         if (veiculoSeletor.value === 'Bicicleta') {
@@ -67,7 +66,6 @@ if (veiculoSeletor) {
     });
 }
 
-// ITEM 3: EXIBE CAMPO DE TROCO APENAS SE FOR DINHEIRO
 if (pagamentoSeletor) {
     pagamentoSeletor.addEventListener('change', () => {
         if (pagamentoSeletor.value === 'Dinheiro') {
@@ -103,7 +101,7 @@ async function carregarMetricasHome() {
         const { count: countTotalDia } = await supabaseClient
             .from('entregas')
             .select('*', { count: 'exact', head: true })
-            .gte('horario_saida', inicioHoje.toISOString());
+            .gte('created_at', inicioHoje.toISOString());
 
         const elNaRua = document.getElementById('metric-na-rua');
         const elLivres = document.getElementById('metric-livres');
@@ -152,7 +150,7 @@ function criarIconeColorido(corHex, numeroOrdem = null) {
     });
 }
 
-// --- LÓGICA DO MAPA COM TEMPOS INDIVIDUAIS POR PARADA ---
+// --- LÓGICA DO MAPA ---
 async function inicializarMapa() {
     const latLoja = LAT_FARMACIA;
     const lngLoja = LNG_FARMACIA;
@@ -283,7 +281,6 @@ async function inicializarMapa() {
                     this.setStyle({ weight: estiloAtual.weight, opacity: estiloAtual.opacity });
                 });
 
-                // ITEM 4: CALCULA O TEMPO ACUMULADO INDIVIDUAL DE CADA PARADA
                 let tempoAcumuladoSegundos = 0;
 
                 grupo.pontos.forEach((pt, idx) => {
@@ -297,12 +294,10 @@ async function inicializarMapa() {
                     let tempoParadaMin = Math.round(tempoAcumuladoSegundos / 60);
                     if (grupo.veiculo === 'Bicicleta') tempoParadaMin = Math.round(tempoParadaMin * 1.5);
                     
-                    // Soma 5 min de atendimento por parada anterior
                     tempoParadaMin += (ordem * TEMPO_ATENDIMENTO_MIN);
 
                     const iconeVeiculo = grupo.veiculo === 'Bicicleta' ? '🚲' : '🏍️';
 
-                    // ITEM 1: TROCADO "Motoboy" POR "Entregador" NO POPUP
                     L.marker([pt.lat, pt.lon], { icon: criarIconeColorido(grupo.cor, ordem) })
                         .addTo(camadaMarcadores)
                         .bindPopup(`
@@ -349,7 +344,6 @@ async function inicializarMapa() {
     desenharLegendaMapa(dadosLegenda);
 }
 
-// 2. LEGENDA DA HOME (ITEM 1: "Entregador" em vez de "Motoboy")
 function desenharLegendaMapa(dadosLegenda) {
     if (legendaControl) {
         mapaHome.removeControl(legendaControl);
@@ -391,7 +385,7 @@ function desenharLegendaMapa(dadosLegenda) {
     legendaControl.addTo(mapaHome);
 }
 
-// --- OPERAÇÕES DE ENTREGADORES ---
+// --- CARREGAR E GERENCIAR ENTREGADORES ---
 formEntregador.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nome = document.getElementById('nome-entregador').value;
@@ -403,17 +397,18 @@ formEntregador.addEventListener('submit', async (e) => {
         { nome, whatsapp, veiculo_padrao: veiculo, autonomia_moto: veiculo === 'Moto' ? parseFloat(autonomia) : 0 }
     ]);
 
-    if (error) { alert('Erro: ' + error.message); } else { formEntregador.reset(); carregarEntregadores(); carregarMetricasHome(); }
+    if (error) { alert('Erro: ' + error.message); } else { formEntregador.reset(); await carregarEntregadores(); carregarMetricasHome(); }
 });
 
 async function carregarEntregadores() {
     const { data: entregadores, error } = await supabaseClient.from('entregadores').select('*').order('nome', { ascending: true });
     if (error) return console.error(error);
 
-    tabelaEntregadores.innerHTML = '';
-    seletorEntregador.innerHTML = '<option value="">Selecione...</option>';
+    listaEntregadoresCache = entregadores || [];
 
-    entregadores.forEach(entregador => {
+    tabelaEntregadores.innerHTML = '';
+
+    listaEntregadoresCache.forEach(entregador => {
         const classeStatus = entregador.status === 'Disponível' ? 'status-disponivel' : 'status-rota';
         
         tabelaEntregadores.innerHTML += `
@@ -423,114 +418,171 @@ async function carregarEntregadores() {
                 <td><span class="status-badge ${classeStatus}">${entregador.status}</span></td>
             </tr>
         `;
-
-        // Guarda o veículo no atributo data-veiculo
-        seletorEntregador.innerHTML += `
-            <option value="${entregador.id}" data-whatsapp="${entregador.whatsapp}" data-veiculo="${entregador.veiculo_padrao}">
-                ${entregador.nome} (${entregador.veiculo_padrao}) - [${entregador.status}]
-            </option>
-        `;
     });
 }
 
-// --- OPERAÇÕES DE ENTREGAS ---
+// --- SALVA PEDIDO DIRETO NA FILA PENDENTE ---
 formEntrega.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const endereco = document.getElementById('endereco-entrega').value;
-    const seletor = document.getElementById('seletor-entregador');
-    const entregadorId = seletor.value;
-    
-    // ITEM 2: HERDA O VEÍCULO AUTOMATICAMENTE DO ENTREGADOR SELECIONADO
-    const opcaoSelecionada = seletor.options[seletor.selectedIndex];
-    const veiculo = opcaoSelecionada.getAttribute('data-veiculo') || 'Moto';
 
-    // ITEM 3: TRATAMENTO DA FORMA DE PAGAMENTO E TROCO
     let pagamento = pagamentoSeletor.value;
     if (pagamento === 'Dinheiro' && trocoInput.value) {
         pagamento = `Dinheiro (Troco p/ R$ ${trocoInput.value})`;
     }
 
     if (idEntregaEmEdicao) {
-        const { data: entregaAntiga } = await supabaseClient
-            .from('entregas')
-            .select('entregador_id')
-            .eq('id', idEntregaEmEdicao)
-            .single();
-
         const { error } = await supabaseClient
             .from('entregas')
             .update({ 
                 endereco_destino: endereco, 
-                entregador_id: entregadorId, 
-                veiculo_utilizado: veiculo, 
                 forma_pagamento: pagamento 
             })
             .eq('id', idEntregaEmEdicao);
 
         if (error) { alert('Erro ao atualizar: ' + error.message); return; }
         
-        if (entregaAntiga && entregaAntiga.entregador_id !== entregadorId) {
-            await checarELiberarEntregador(entregaAntiga.entregador_id);
-            await supabaseClient.from('entregadores').update({ status: 'Em Rota' }).eq('id', entregadorId);
-        }
-        
         idEntregaEmEdicao = null;
-        formEntrega.querySelector('button[type="submit"]').textContent = "Despachar Entrega";
-        formEntrega.querySelector('button[type="submit"]').className = "btn-primary";
+        formEntrega.querySelector('button[type="submit"]').textContent = "➕ Salvar Pedido na Fila";
         
     } else {
-        const { data: novaEntrega, error: errorEntrega } = await supabaseClient
-            .from('entregas')
-            .insert([{ 
-                entregador_id: entregadorId, 
-                endereco_destino: endereco, 
-                veiculo_utilizado: veiculo, 
-                forma_pagamento: pagamento, 
-                status: 'Em Rota', 
-                horario_saida: new Date().toISOString() 
-            }])
-            .select().single();
+        const payload = {
+            endereco_destino: endereco, 
+            forma_pagamento: pagamento, 
+            status: 'Pendente',
+            created_at: new Date().toISOString()
+        };
 
-        if (errorEntrega) { alert('Erro ao despachar: ' + errorEntrega.message); return; }
+        const { error: errorEntrega } = await supabaseClient.from('entregas').insert([payload]);
 
-        await supabaseClient.from('entregadores').update({ status: 'Em Rota' }).eq('id', entregadorId);
+        if (errorEntrega) { alert('Erro ao cadastrar pedido: ' + errorEntrega.message); return; }
     }
 
     formEntrega.reset();
     groupTroco.classList.add('hidden');
-    carregarEntregadores();
-    carregarEntregasAtivas();
+    carregarFilaEEntregas();
     carregarMetricasHome();
-    inicializarMapa();
 });
 
-async function carregarEntregasAtivas() {
-    const { data: entregas, error } = await supabaseClient
+// --- CARREGAR TABELAS COM BADGES COLORIDOS E ESPAÇAMENTO ---
+async function carregarFilaEEntregas() {
+    function formatarBadgePagamento(pagamento) {
+        if (!pagamento) return '<span class="badge-pay">--</span>';
+        if (pagamento.includes('Pix')) return `<span class="badge-pay badge-pix">💸 ${pagamento}</span>`;
+        if (pagamento.includes('Dinheiro')) return `<span class="badge-pay badge-money">💵 ${pagamento}</span>`;
+        return `<span class="badge-pay badge-card">💳 ${pagamento}</span>`;
+    }
+
+    // 1. CARREGAR FILA DE PENDENTES
+    const { data: pendentes } = await supabaseClient
+        .from('entregas')
+        .select('*')
+        .eq('status', 'Pendente')
+        .order('created_at', { ascending: true });
+
+    tabelaPedidosPendentes.innerHTML = '';
+    const elCountPendentes = document.getElementById('count-pendentes');
+    if (elCountPendentes) elCountPendentes.textContent = pendentes ? pendentes.length : 0;
+
+    if (pendentes && pendentes.length > 0) {
+        pendentes.forEach(p => {
+            const horaFormatada = p.created_at ? new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+            
+            let optionsEntregadores = '<option value="">Escolha um Entregador...</option>';
+            listaEntregadoresCache.forEach(ent => {
+                optionsEntregadores += `<option value="${ent.id}" data-veiculo="${ent.veiculo_padrao}">${ent.nome} (${ent.veiculo_padrao})</option>`;
+            });
+
+            tabelaPedidosPendentes.innerHTML += `
+                <tr>
+                    <td><strong>${p.endereco_destino}</strong></td>
+                    <td>${formatarBadgePagamento(p.forma_pagamento)}</td>
+                    <td><span class="badge-time">⏰ ${horaFormatada}</span></td>
+                    <td>
+                        <select id="select-despacho-${p.id}" class="select-inline">${optionsEntregadores}</select>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 8px; justify-content: flex-end;">
+                            <button onclick="despacharPedidoPendente('${p.id}')" class="btn-sm btn-primary-sm">Despachar</button>
+                            <button onclick="cancelarEntrega('${p.id}', null)" class="btn-sm btn-danger-sm">Cancelar</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tabelaPedidosPendentes.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding: 20px;">Nenhum pedido aguardando na fila.</td></tr>`;
+    }
+
+    // 2. CARREGAR ENTREGAS EM ROTA
+    const { data: emRota } = await supabaseClient
         .from('entregas')
         .select(`id, endereco_destino, forma_pagamento, status, entregador_id, veiculo_utilizado, entregadores ( nome )`)
         .eq('status', 'Em Rota');
 
-    if (error) return console.error(error);
     tabelaEntregasAtivas.innerHTML = '';
-    
-    entregas.forEach(entrega => {
-        tabelaEntregasAtivas.innerHTML += `
-            <tr>
-                <td>${entrega.endereco_destino}</td>
-                <td>${entrega.entregadores ? entrega.entregadores.nome : 'Sem Nome'}</td>
-                <td>${entrega.forma_pagamento}</td>
-                <td>
-                    <button onclick="forcarFinalizar('${entrega.id}', '${entrega.entregador_id}')" style="background:#10b981; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Concluir</button>
-                    <button onclick="cancelarEntrega('${entrega.id}', '${entrega.entregador_id}')" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Cancelar</button>
-                    <button onclick="prepararEdicao('${entrega.id}', '${entrega.endereco_destino}', '${entrega.entregador_id}', '${entrega.forma_pagamento}')" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">Editar</button>
-                </td>
-            </tr>
-        `;
-    });
+    const elCountEmRota = document.getElementById('count-em-rota');
+    if (elCountEmRota) elCountEmRota.textContent = emRota ? emRota.length : 0;
+
+    if (emRota && emRota.length > 0) {
+        emRota.forEach(entrega => {
+            tabelaEntregasAtivas.innerHTML += `
+                <tr>
+                    <td>${entrega.endereco_destino}</td>
+                    <td><strong>${entrega.entregadores ? entrega.entregadores.nome : 'Sem Nome'}</strong></td>
+                    <td>${formatarBadgePagamento(entrega.forma_pagamento)}</td>
+                    <td style="text-align: right;">
+                        <button onclick="forcarFinalizar('${entrega.id}', '${entrega.entregador_id}')" class="btn-sm btn-success-sm" style="margin-right: 4px;">Concluir</button>
+                        <button onclick="cancelarEntrega('${entrega.id}', '${entrega.entregador_id}')" class="btn-sm btn-danger-sm">Cancelar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tabelaEntregasAtivas.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding: 20px;">Nenhuma entrega em rota no momento.</td></tr>`;
+    }
 }
 
+// --- DESPACHA PEDIDO DA FILA PARA O ENTREGADOR ---
+window.despacharPedidoPendente = async (pedidoId) => {
+    const seletor = document.getElementById(`select-despacho-${pedidoId}`);
+    const entregadorId = seletor.value;
+
+    if (!entregadorId) {
+        alert("Por favor, selecione qual entregador vai levar esse pedido!");
+        return;
+    }
+
+    const opcaoSelecionada = seletor.options[seletor.selectedIndex];
+    const veiculo = opcaoSelecionada.getAttribute('data-veiculo') || 'Moto';
+
+    const { error } = await supabaseClient
+        .from('entregas')
+        .update({
+            entregador_id: entregadorId,
+            veiculo_utilizado: veiculo,
+            status: 'Em Rota',
+            horario_saida: new Date().toISOString()
+        })
+        .eq('id', pedidoId);
+
+    if (error) {
+        alert("Erro ao despachar pedido: " + error.message);
+        return;
+    }
+
+    await supabaseClient.from('entregadores').update({ status: 'Em Rota' }).eq('id', entregadorId);
+
+    await carregarEntregadores();
+    carregarFilaEEntregas();
+    carregarMetricasHome();
+    inicializarMapa();
+};
+
 async function checarELiberarEntregador(entregadorId) {
+    if (!entregadorId) return;
+
     const { data: entregasRestantes } = await supabaseClient
         .from('entregas')
         .select('id')
@@ -549,8 +601,8 @@ window.forcarFinalizar = async (entregaId, entregadorId) => {
     await supabaseClient.from('entregas').update({ status: 'Entregue', horario_entrega: new Date().toISOString() }).eq('id', entregaId);
     await checarELiberarEntregador(entregadorId);
     
-    carregarEntregadores();
-    carregarEntregasAtivas();
+    await carregarEntregadores();
+    carregarFilaEEntregas();
     carregarMetricasHome();
     inicializarMapa();
 };
@@ -559,33 +611,12 @@ window.cancelarEntrega = async (entregaId, entregadorId) => {
     if(!confirm("Tem certeza que deseja CANCELAR essa entrega?")) return;
     
     await supabaseClient.from('entregas').update({ status: 'Cancelado' }).eq('id', entregaId);
-    await checarELiberarEntregador(entregadorId);
+    if (entregadorId) await checarELiberarEntregador(entregadorId);
     
-    carregarEntregadores();
-    carregarEntregasAtivas();
+    await carregarEntregadores();
+    carregarFilaEEntregas();
     carregarMetricasHome();
     inicializarMapa();
-};
-
-window.prepararEdicao = (id, endereco, entregadorId, pagamento) => {
-    idEntregaEmEdicao = id;
-    
-    document.getElementById('endereco-entrega').value = endereco;
-    seletorEntregador.value = entregadorId;
-
-    if (pagamento.includes('Dinheiro')) {
-        pagamentoSeletor.value = 'Dinheiro';
-        groupTroco.classList.remove('hidden');
-        const match = pagamento.match(/R\$\s*([\d.]+)/);
-        if (match) trocoInput.value = match[1];
-    } else {
-        pagamentoSeletor.value = pagamento;
-        groupTroco.classList.add('hidden');
-    }
-
-    const btnSubmit = formEntrega.querySelector('button[type="submit"]');
-    btnSubmit.textContent = "Salvar Alterações";
-    btnSubmit.className = "btn-success"; 
 };
 
 verificarSessao();

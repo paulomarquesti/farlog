@@ -242,3 +242,241 @@ button[type="submit"] { width: 100%; padding: 0.75rem; color: white; border: non
         grid-column: span 1;
     }
 }
+#map, .leaflet-container {
+    height: 55vh !important;
+    min-height: 500px !important;
+    max-height: 750px !important;
+    width: 100% !important;
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+/* --- ESTILIZAÇÃO MODERNA DA TELA DE DESPACHO --- */
+
+/* Mini Cards de Estatísticas */
+.despacho-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stat-mini-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.stat-mini-card.status-pendente { border-left: 5px solid #f59e0b; }
+.stat-mini-card.status-em-rota { border-left: 5px solid #2563eb; }
+
+.stat-icon { font-size: 1.8rem; }
+.stat-count { font-size: 1.5rem; font-weight: 700; color: #1e293b; display: block; line-height: 1; }
+.stat-label { font-size: 0.8rem; color: #64748b; font-weight: 500; }
+
+/* Cards do Painel */
+.card-despacho {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+.card-header-clean { margin-bottom: 16px; }
+.card-header-clean h3 { margin: 0; font-size: 1.1rem; color: #1e293b; font-weight: 600; }
+.card-header-clean p { margin: 4px 0 0 0; font-size: 0.85rem; color: #64748b; }
+.text-warning h3 { color: #d97706; }
+.text-primary h3 { color: #2563eb; }
+
+/* Tabelas Alinhadas e Modernas */
+.table-container { overflow-x: auto; }
+
+.tabela-despacho {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.tabela-despacho th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.tabela-despacho td {
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.tabela-despacho tr:hover { background-color: #f8fafc; }
+
+/* Badges Coloridos de Pagamento e Horário */
+.badge-pay {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.badge-pix { background: #dcfce7; color: #15803d; }
+.badge-card { background: #dbeafe; color: #1e40af; }
+.badge-money { background: #fef3c7; color: #b45309; }
+
+.badge-time {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Ações Inline */
+.despacho-action-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.select-inline {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background-color: #fff;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.btn-sm:hover { filter: brightness(0.9); }
+.btn-success-sm { background-color: #10b981; color: white; }
+.btn-primary-sm { background-color: #2563eb; color: white; }
+.btn-danger-sm { background-color: #ef4444; color: white; }
+
+.btn-block { width: 100%; }
+
+/* --- AJUSTES DE LARGURA E DESIGN DO FORMULÁRIO --- */
+/* Limita a largura máxima do formulário para não esticar na tela inteira */
+#form-entrega {
+    max-width: 650px; /* Largura ideal e elegante para o balcão */
+}
+
+#form-entrega .form-group input,
+#form-entrega .form-group select {
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#form-entrega label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* --- AJUSTES DA TABELA DE PEDIDOS AGUARDANDO DESPACHO --- */
+.despacho-action-box {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Dá um espaçamento confortável entre o seletor e o botão */
+}
+
+/* Estiliza e dá presença ao campo de seleção do entregador dentro da tabela */
+.select-inline {
+    padding: 7px 12px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    font-size: 0.85rem !important;
+    background-color: #ffffff !important;
+    color: #334155 !important;
+    cursor: pointer;
+    min-width: 190px; /* Garante tamanho suficiente para ler o nome e veículo */
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.select-inline:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Garante alinhamento vertical e paddings suaves nas células */
+.tabela-despacho td {
+    padding: 14px 12px !important;
+    vertical-align: middle !important;
+}
+/* --- FORÇAR VISUAL LIMPO E MODERNO NA FILA --- */
+.badge-pay {
+    display: inline-block !important;
+    padding: 4px 10px !important;
+    border-radius: 20px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+}
+.badge-pix { background-color: #dcfce7 !important; color: #166534 !important; }
+.badge-card { background-color: #dbeafe !important; color: #1e40af !important; }
+.badge-money { background-color: #fef3c7 !important; color: #92400e !important; }
+
+.badge-time {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+}
+
+.despacho-action-box {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+.select-inline {
+    padding: 8px 12px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-size: 0.85rem !important;
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
+    cursor: pointer !important;
+    min-width: 210px !important;
+    outline: none !important;
+}
+
+.btn-sm {
+    padding: 8px 14px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+}
+
+.btn-primary-sm { background-color: #2563eb !important; color: white !important; }
+.btn-danger-sm { background-color: #ef4444 !important; color: white !important; }
+.btn-success-sm { background-color: #10b981 !important; color: white !important; }
