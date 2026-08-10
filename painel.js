@@ -52,6 +52,7 @@ async function verificarSessao() {
         await carregarEntregadores();
         carregarFilaEEntregas();
         carregarMetricasHome();
+        carregarDashboardMetricas();
         inicializarMapa();
     }
 }
@@ -604,6 +605,7 @@ window.forcarFinalizar = async (entregaId, entregadorId) => {
     await carregarEntregadores();
     carregarFilaEEntregas();
     carregarMetricasHome();
+    carregarDashboardMetricas();
     inicializarMapa();
 };
 
@@ -616,7 +618,245 @@ window.cancelarEntrega = async (entregaId, entregadorId) => {
     await carregarEntregadores();
     carregarFilaEEntregas();
     carregarMetricasHome();
+    carregarDashboardMetricas();
     inicializarMapa();
 };
 
+// --- SIMULADOR RÁPIDO DE TEMPO (CONSIDERANDO A FILA) ---
+const btnSimular = document.getElementById('btn-simular');
+const inputSimular = document.getElementById('simular-endereco');
+const divResultado = document.getElementById('resultado-simulacao');
+
+if (btnSimular) {
+    btnSimular.addEventListener('click', async () => {
+        const endereco = inputSimular.value.trim();
+        if (!endereco) {
+            alert('Digite um endereço para simular!');
+            return;
+        }
+
+        btnSimular.textContent = 'Calculando...';
+        btnSimular.disabled = true;
+
+        try {
+            // 1. CALCULA TEMPO DE BUSCA E ROTA DO NOVO ENDEREÇO
+            const enderecoTratado = limparEndereco(endereco);
+            const busca = `${enderecoTratado}, ${CIDADE_PADRAO}`;
+            
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(busca)}`);
+            const data = await resp.json();
+
+            if (!data || data.length === 0) {
+                alert('Endereço não encontrado no mapa.');
+                return;
+            }
+
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+
+            const url = `https://router.project-osrm.org/route/v1/driving/${LNG_FARMACIA},${LAT_FARMACIA};${lon},${lat}?overview=false`;
+            const respRota = await fetch(url);
+            const dataRota = await respRota.json();
+
+            if (!dataRota.routes || dataRota.routes.length === 0) {
+                alert('Não foi possível calcular a rota para este endereço.');
+                return;
+            }
+
+            const distanciaKm = (dataRota.routes[0].distance / 1000).toFixed(1);
+            const tempoTrajetoMin = Math.round(dataRota.routes[0].duration / 60);
+
+            // 2. CONSULTA CARGA DA FILA NO SUPABASE (PENDENTES + EM ROTA)
+            const { count: qtdPendentes } = await supabaseClient
+                .from('entregas')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'Pendente');
+
+            const { count: qtdEmRota } = await supabaseClient
+                .from('entregas')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'Em Rota');
+
+            const totalPedidosFila = (qtdPendentes || 0) + (qtdEmRota || 0);
+
+            // Estima o tempo de espera da fila (media de 12 min por pedido na frente distribuídos pela equipe)
+            const qtdEntregadoresDisponiveis = Math.max(listaEntregadoresCache.length, 1);
+            const tempoEsperaFilaMin = Math.round((totalPedidosFila * 12) / qtdEntregadoresDisponiveis);
+
+            const tempoTotalEst = tempoTrajetoMin + TEMPO_ATENDIMENTO_MIN + tempoEsperaFilaMin;
+
+            divResultado.style.display = 'block';
+            divResultado.innerHTML = `
+                <strong>📍 Estimativa para o Cliente:</strong><br>
+                • Distância da farmácia: <strong>${distanciaKm} km</strong><br>
+                • Tempo de deslocamento direto: <strong>~${tempoTrajetoMin} min</strong><br>
+                • Pedidos na fila atual: <strong>${totalPedidosFila} pedido(s)</strong> (Espera est.: ~${tempoEsperaFilaMin} min)<br>
+                • <span style="font-size:0.95rem; color:#15803d;"><strong>⏱️ Previsão Total de Entrega: ~${tempoTotalEst} min</strong></span>
+            `;
+
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao realizar simulação.');
+        } finally {
+            btnSimular.textContent = 'Simular Tempo';
+            btnSimular.disabled = false;
+        }
+    });
+}
+
+// --- LÓGICA DO DASHBOARD E KPIS ---
+async function carregarDashboardMetricas() {
+    try {
+        const inicioHoje = new Date();
+        inicioHoje.setHours(0, 0, 0, 0);
+
+        // Busca todas as entregas do dia
+        const { data: entregasHoje, error } = await supabaseClient
+            .from('entregas')
+            .select(`
+                id, 
+                status, 
+                created_at, 
+                horario_saida, 
+                horario_entrega, 
+                forma_pagamento, 
+                entregador_id, 
+                entregadores ( nome, veiculo_padrao )
+            `)
+            .gte('created_at', inicioHoje.toISOString());
+
+        if (error) throw error;
+
+        const concluidas = entregasHoje.filter(e => e.status === 'Entregue');
+
+        // 1. KPI: TOTAL CONCLUÍDAS
+        const elTotal = document.getElementById('kpi-total-concluidas');
+        if (elTotal) elTotal.textContent = concluidas.length;
+
+        // 2. KPI: TEMPO MÉDIO GERAL DE ENTREGA (created_at até horario_entrega)
+        let somaMinutosGeral = 0;
+        let qtdComHorario = 0;
+
+        concluidas.forEach(e => {
+            if (e.created_at && e.horario_entrega) {
+                const inicio = new Date(e.created_at);
+                const fim = new Date(e.horario_entrega);
+                const diffMinutos = Math.max(0, Math.round((fim - inicio) / (1000 * 60)));
+                somaMinutosGeral += diffMinutos;
+                qtdComHorario++;
+            }
+        });
+
+        const tempoMedioGeral = qtdComHorario > 0 ? Math.round(somaMinutosGeral / qtdComHorario) : 0;
+        const elTempo = document.getElementById('kpi-tempo-medio');
+        if (elTempo) elTempo.textContent = `${tempoMedioGeral} min`;
+
+        // 3. RANKING E PERFORMANCE POR ENTREGADOR
+        const statsEntregadores = {};
+        const contagemPagamentos = { Pix: 0, Cartao: 0, Dinheiro: 0 };
+
+        concluidas.forEach(e => {
+            // Agrupamento por Entregador
+            const eId = e.entregador_id || 'sem_id';
+            const nomeNome = e.entregadores ? e.entregadores.nome : 'Não informado';
+            const veiculo = e.entregadores ? e.entregadores.veiculo_padrao : 'Moto';
+
+            if (!statsEntregadores[eId]) {
+                statsEntregadores[eId] = { nome: nomeNome, veiculo: veiculo, total: 0, somaMinutosRota: 0, qtdRotas: 0 };
+            }
+
+            statsEntregadores[eId].total += 1;
+
+            if (e.horario_saida && e.horario_entrega) {
+                const tempoRota = Math.max(0, Math.round((new Date(e.horario_entrega) - new Date(e.horario_saida)) / (1000 * 60)));
+                statsEntregadores[eId].somaMinutosRota += tempoRota;
+                statsEntregadores[eId].qtdRotas += 1;
+            }
+
+            // Agrupamento por Forma de Pagamento
+            const pag = e.forma_pagamento || '';
+            if (pag.includes('Pix')) contagemPagamentos.Pix++;
+            else if (pag.includes('Dinheiro')) contagemPagamentos.Dinheiro++;
+            else contagemPagamentos.Cartao++;
+        });
+
+        // Atualiza KPI Destaque
+        let melhorEntregador = null;
+        let maxEntregas = -1;
+
+        Object.values(statsEntregadores).forEach(ent => {
+            if (ent.total > maxEntregas) {
+                maxEntregas = ent.total;
+                melhorEntregador = ent;
+            }
+        });
+
+        const elDestaque = document.getElementById('kpi-entregador-destaque');
+        const elQtd = document.getElementById('kpi-entregador-qtd');
+
+        if (elDestaque && elQtd) {
+            if (melhorEntregador && maxEntregas > 0) {
+                elDestaque.textContent = melhorEntregador.nome;
+                elQtd.textContent = `${melhorEntregador.total} entrega(s) realizadas hoje`;
+            } else {
+                elDestaque.textContent = '--';
+                elQtd.textContent = 'Nenhuma entrega finalizada';
+            }
+        }
+
+        // Renderiza Tabela de Ranking
+        const tbodyRanking = document.getElementById('tabela-ranking-entregadores');
+        if (tbodyRanking) {
+            tbodyRanking.innerHTML = '';
+            const listaOrdenada = Object.values(statsEntregadores).sort((a, b) => b.total - a.total);
+
+            if (listaOrdenada.length > 0) {
+                listaOrdenada.forEach(ent => {
+                    const mediaRota = ent.qtdRotas > 0 ? Math.round(ent.somaMinutosRota / ent.qtdRotas) : 0;
+                    tbodyRanking.innerHTML += `
+                        <tr>
+                            <td><strong>${ent.nome}</strong></td>
+                            <td>${ent.veiculo === 'Bicicleta' ? '🚲' : '🏍️'} ${ent.veiculo}</td>
+                            <td style="text-align: center;"><span class="badge-time">${ent.total}</span></td>
+                            <td style="text-align: right;"><strong>~${mediaRota} min</strong></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbodyRanking.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding: 15px;">Sem dados de entregas concluídas hoje.</td></tr>`;
+            }
+        }
+
+        // Renderiza Bloco de Pagamentos
+        const divPagamentos = document.getElementById('resumo-pagamentos');
+        if (divPagamentos) {
+            const totalPagos = concluidas.length || 1;
+            divPagamentos.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+                        <span>💸 Pix</span>
+                        <strong>${contagemPagamentos.Pix} (${Math.round((contagemPagamentos.Pix / totalPagos) * 100)}%)</strong>
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+                        <span>💳 Cartão</span>
+                        <strong>${contagemPagamentos.Cartao} (${Math.round((contagemPagamentos.Cartao / totalPagos) * 100)}%)</strong>
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+                        <span>💵 Dinheiro</span>
+                        <strong>${contagemPagamentos.Dinheiro} (${Math.round((contagemPagamentos.Dinheiro / totalPagos) * 100)}%)</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+    } catch (err) {
+        console.error('Erro ao carregar métricas:', err);
+    }
+}
+
+// Inicializa a aplicação
 verificarSessao();

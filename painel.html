@@ -86,7 +86,22 @@
                         </div>
                     </div>
                 </div>
-
+                <!-- SIMULADOR RÁPIDO DE FRETE / TEMPO -->
+                <div class="card-painel card-simulador" style="margin-bottom: 20px;">
+                    <div class="card-header-clean">
+                        <h3>⏱️ Simulador Rápido de Tempo e Viabilidade</h3>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-end; margin-top: 10px;">
+                        <div style="flex: 1;">
+                            <label for="simular-endereco" style="font-size: 0.85rem; font-weight: 600; color: #334155;">Endereço da Consulta:</label>
+                            <input type="text" id="simular-endereco" placeholder="Ex: Rua Voluntários da Pátria, 120" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+                        </div>
+                        <button type="button" id="btn-simular" class="btn-sm btn-primary-sm" style="height: 40px; padding: 0 16px;">Simular Tempo</button>
+                    </div>
+                    <div id="resultado-simulacao" style="margin-top: 12px; display: none; padding: 10px; border-radius: 6px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 0.9rem;">
+                        <!-- Resultado injetado via JS -->
+                    </div>
+                </div>
                 <!-- 2. FORMULÁRIO DE NOVO PEDIDO -->
                 <div class="card-painel card-despacho">
                     <div class="card-header-clean">
@@ -218,8 +233,68 @@
             </section>
 
             <section id="tab-metricas" class="tab-content hidden">
-                <h2>Métricas & Dashboard Administrativo</h2>
-                <p>Aqui ficará o consolidado de custos com combustível, faturamento de taxas e relatórios de tempo de entrega (SLA).</p>
+                <h2>📊 Dashboard e KPIs Operacionais</h2>
+
+                <!-- 1. CARDS DE TOP KPIs -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0;">
+                    <!-- Card 1: Tempo Médio -->
+                    <div class="card-painel" style="padding: 16px; border-left: 4px solid #2563eb;">
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Tempo Médio de Entrega</span>
+                        <div id="kpi-tempo-medio" style="font-size: 1.8rem; font-weight: 700; color: #1e293b; margin-top: 6px;">-- min</div>
+                        <small style="color: #94a3b8; font-size: 0.75rem;">Calculado no dia de hoje</small>
+                    </div>
+
+                    <!-- Card 2: Concluídas Hoje -->
+                    <div class="card-painel" style="padding: 16px; border-left: 4px solid #10b981;">
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Concluídas Hoje</span>
+                        <div id="kpi-total-concluidas" style="font-size: 1.8rem; font-weight: 700; color: #1e293b; margin-top: 6px;">0</div>
+                        <small style="color: #94a3b8; font-size: 0.75rem;">Entregas finalizadas com sucesso</small>
+                    </div>
+
+                    <!-- Card 3: Entregador Destaque -->
+                    <div class="card-painel" style="padding: 16px; border-left: 4px solid #f59e0b;">
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Entregador Destaque</span>
+                        <div id="kpi-entregador-destaque" style="font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-top: 6px;">--</div>
+                        <small id="kpi-entregador-qtd" style="color: #94a3b8; font-size: 0.75rem;">0 entregas realizadas</small>
+                    </div>
+                </div>
+
+                <!-- 2. BLOCOS INFERIORES (TABELA DE DESEMPENHO E FORMAS DE PAGAMENTO) -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+                    
+                    <!-- Desempenho da Equipe -->
+                    <div class="card-painel">
+                        <div class="card-header-clean">
+                            <h3>🏆 Desempenho da Equipe (Hoje)</h3>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Entregador</th>
+                                        <th>Veículo</th>
+                                        <th style="text-align: center;">Concluídas</th>
+                                        <th style="text-align: right;">Tempo Médio / Rota</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-ranking-entregadores">
+                                    <!-- Renderizado via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Divisão por Forma de Pagamento -->
+                    <div class="card-painel">
+                        <div class="card-header-clean">
+                            <h3>💳 Formas de Pagamento</h3>
+                        </div>
+                        <div id="resumo-pagamentos" style="padding: 10px 0;">
+                            <!-- Renderizado via JS -->
+                        </div>
+                    </div>
+
+                </div>
             </section>
 
             <section id="tab-config" class="tab-content hidden">
@@ -269,6 +344,10 @@
                 if (targetTab === 'tab-home') {
                     if (typeof inicializarMapa === 'function') inicializarMapa();
                     if (typeof carregarMetricasHome === 'function') carregarMetricasHome();
+                }
+                // Se a aba selecionada for Métricas, carrega o dashboard
+                if (targetTab === 'tab-metricas') {
+                    if (typeof carregarDashboardMetricas === 'function') carregarDashboardMetricas();
                 }
             });
         });
