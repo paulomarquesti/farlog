@@ -117,8 +117,21 @@ async function carregarMetricasHome() {
     }
 }
 
-function limparEndereco(enderecoBruto) {
-    return enderecoBruto
+// Formata exibição visual completa do endereço
+function formatarEnderecoCompleto(entrega) {
+    if (entrega.logradouro) {
+        const comp = entrega.complemento ? ` - ${entrega.complemento}` : '';
+        return `${entrega.logradouro}, ${entrega.numero || 'S/N'}${comp}, ${entrega.bairro || ''}`;
+    }
+    return entrega.endereco_destino || 'Endereço não informado';
+}
+
+// Monta query limpa para busca no mapa (sem complementos que quebram a busca)
+function obterQueryBuscaMapa(entrega) {
+    if (entrega.logradouro) {
+        return `${entrega.logradouro}, ${entrega.numero || ''}, ${entrega.bairro || ''}, ${entrega.cidade || 'Rio de Janeiro'}`;
+    }
+    return entrega.endereco_destino
         .replace(/(apto|apt|apartamento|bloco|bl|casa|fundos|sobrado|loja|prox|próximo|ao lado).*/gi, '')
         .replace(/-.*/g, '')
         .trim();
@@ -177,7 +190,7 @@ async function inicializarMapa() {
 
     const { data: entregasAtivas, error } = await supabaseClient
         .from('entregas')
-        .select('id, endereco_destino, forma_pagamento, entregador_id, veiculo_utilizado, entregadores(nome, veiculo_padrao)')
+        .select('id, endereco_destino, logradouro, numero, complemento, bairro, cidade, nome_cliente, forma_pagamento, entregador_id, veiculo_utilizado, entregadores(nome, veiculo_padrao)')
         .eq('status', 'Em Rota');
 
     if (error) return console.error('Erro ao buscar rotas para o mapa:', error);
@@ -188,8 +201,7 @@ async function inicializarMapa() {
 
     for (const entrega of entregasAtivas) {
         try {
-            const enderecoTratado = limparEndereco(entrega.endereco_destino);
-            const buscaCompleta = `${enderecoTratado}, ${CIDADE_PADRAO}`;
+            const buscaCompleta = obterQueryBuscaMapa(entrega);
 
             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(buscaCompleta)}`);
             const data = await response.json();
@@ -212,7 +224,8 @@ async function inicializarMapa() {
 
                 entregasPorEntregador[eId].pontos.push({
                     id: entrega.id,
-                    endereco: entrega.endereco_destino,
+                    endereco: formatarEnderecoCompleto(entrega),
+                    cliente: entrega.nome_cliente,
                     pagamento: entrega.forma_pagamento,
                     lat: lat,
                     lon: lon
@@ -298,12 +311,14 @@ async function inicializarMapa() {
                     tempoParadaMin += (ordem * TEMPO_ATENDIMENTO_MIN);
 
                     const iconeVeiculo = grupo.veiculo === 'Bicicleta' ? '🚲' : '🏍️';
+                    const clienteTxt = pt.cliente ? `<b>👤 Cliente:</b> ${pt.cliente}<br>` : '';
 
                     L.marker([pt.lat, pt.lon], { icon: criarIconeColorido(grupo.cor, ordem) })
                         .addTo(camadaMarcadores)
                         .bindPopup(`
                             <div style="border-left: 4px solid ${grupo.cor}; padding-left: 8px;">
                                 <b>📍 Parada nº ${ordem}:</b> ${pt.endereco}<br>
+                                ${clienteTxt}
                                 <b>${iconeVeiculo} Entregador:</b> <span style="color:${grupo.cor}; font-weight:bold;">${grupo.nome}</span> (${grupo.veiculo})<br>
                                 <b>⏱️ Previsão de Chegada:</b> ~${tempoParadaMin} min<br>
                                 <b>💳 Pagamento:</b> ${pt.pagamento}
@@ -422,24 +437,46 @@ async function carregarEntregadores() {
     });
 }
 
-// --- SALVA PEDIDO DIRETO NA FILA PENDENTE ---
+// --- SALVA PEDIDO DIRETO NA FILA PENDENTE COM CAMPOS NORMALIZADOS ---
 formEntrega.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const endereco = document.getElementById('endereco-entrega').value;
+    const nome_cliente = document.getElementById('nome-cliente').value.trim();
+    const telefone_cliente = document.getElementById('telefone-cliente').value.trim();
+    const logradouro = document.getElementById('logradouro-entrega').value.trim();
+    const numero = document.getElementById('numero-entrega').value.trim();
+    const complemento = document.getElementById('complemento-entrega').value.trim();
+    const bairro = document.getElementById('bairro-entrega').value.trim();
+    const cep = document.getElementById('cep-entrega').value.trim();
+
+    // Mantém endereco_destino montado para compatibilidade total
+    const compTexto = complemento ? ` - ${complemento}` : '';
+    const endereco_destino = `${logradouro}, ${numero}${compTexto}, ${bairro}`;
 
     let pagamento = pagamentoSeletor.value;
     if (pagamento === 'Dinheiro' && trocoInput.value) {
         pagamento = `Dinheiro (Troco p/ R$ ${trocoInput.value})`;
     }
 
+    const payload = {
+        nome_cliente: nome_cliente || null,
+        telefone_cliente: telefone_cliente || null,
+        logradouro,
+        numero,
+        complemento: complemento || null,
+        bairro,
+        cidade: 'Rio de Janeiro',
+        cep: cep || null,
+        endereco_destino,
+        forma_pagamento: pagamento,
+        status: 'Pendente',
+        created_at: new Date().toISOString()
+    };
+
     if (idEntregaEmEdicao) {
         const { error } = await supabaseClient
             .from('entregas')
-            .update({ 
-                endereco_destino: endereco, 
-                forma_pagamento: pagamento 
-            })
+            .update(payload)
             .eq('id', idEntregaEmEdicao);
 
         if (error) { alert('Erro ao atualizar: ' + error.message); return; }
@@ -448,13 +485,6 @@ formEntrega.addEventListener('submit', async (e) => {
         formEntrega.querySelector('button[type="submit"]').textContent = "➕ Salvar Pedido na Fila";
         
     } else {
-        const payload = {
-            endereco_destino: endereco, 
-            forma_pagamento: pagamento, 
-            status: 'Pendente',
-            created_at: new Date().toISOString()
-        };
-
         const { error: errorEntrega } = await supabaseClient.from('entregas').insert([payload]);
 
         if (errorEntrega) { alert('Erro ao cadastrar pedido: ' + errorEntrega.message); return; }
@@ -489,7 +519,9 @@ async function carregarFilaEEntregas() {
     if (pendentes && pendentes.length > 0) {
         pendentes.forEach(p => {
             const horaFormatada = p.created_at ? new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
-            
+            const enderecoFormatado = formatarEnderecoCompleto(p);
+            const clienteInfo = p.nome_cliente ? `<br><small style="color:#64748b;">👤 ${p.nome_cliente}</small>` : '';
+
             let optionsEntregadores = '<option value="">Escolha um Entregador...</option>';
             listaEntregadoresCache.forEach(ent => {
                 optionsEntregadores += `<option value="${ent.id}" data-veiculo="${ent.veiculo_padrao}">${ent.nome} (${ent.veiculo_padrao})</option>`;
@@ -497,7 +529,7 @@ async function carregarFilaEEntregas() {
 
             tabelaPedidosPendentes.innerHTML += `
                 <tr>
-                    <td><strong>${p.endereco_destino}</strong></td>
+                    <td><strong>${enderecoFormatado}</strong>${clienteInfo}</td>
                     <td>${formatarBadgePagamento(p.forma_pagamento)}</td>
                     <td><span class="badge-time">⏰ ${horaFormatada}</span></td>
                     <td>
@@ -519,7 +551,7 @@ async function carregarFilaEEntregas() {
     // 2. CARREGAR ENTREGAS EM ROTA
     const { data: emRota } = await supabaseClient
         .from('entregas')
-        .select(`id, endereco_destino, forma_pagamento, status, entregador_id, veiculo_utilizado, entregadores ( nome )`)
+        .select(`id, endereco_destino, logradouro, numero, complemento, bairro, nome_cliente, forma_pagamento, status, entregador_id, veiculo_utilizado, entregadores ( nome )`)
         .eq('status', 'Em Rota');
 
     tabelaEntregasAtivas.innerHTML = '';
@@ -528,9 +560,12 @@ async function carregarFilaEEntregas() {
 
     if (emRota && emRota.length > 0) {
         emRota.forEach(entrega => {
+            const enderecoFormatado = formatarEnderecoCompleto(entrega);
+            const clienteInfo = entrega.nome_cliente ? `<br><small style="color:#64748b;">👤 ${entrega.nome_cliente}</small>` : '';
+
             tabelaEntregasAtivas.innerHTML += `
                 <tr>
-                    <td>${entrega.endereco_destino}</td>
+                    <td><strong>${enderecoFormatado}</strong>${clienteInfo}</td>
                     <td><strong>${entrega.entregadores ? entrega.entregadores.nome : 'Sem Nome'}</strong></td>
                     <td>${formatarBadgePagamento(entrega.forma_pagamento)}</td>
                     <td style="text-align: right;">
@@ -622,7 +657,7 @@ window.cancelarEntrega = async (entregaId, entregadorId) => {
     inicializarMapa();
 };
 
-// --- SIMULADOR RÁPIDO DE TEMPO (CONSIDERANDO A FILA) ---
+// --- SIMULADOR RÁPIDO DE TEMPO ---
 const btnSimular = document.getElementById('btn-simular');
 const inputSimular = document.getElementById('simular-endereco');
 const divResultado = document.getElementById('resultado-simulacao');
@@ -639,8 +674,10 @@ if (btnSimular) {
         btnSimular.disabled = true;
 
         try {
-            // 1. CALCULA TEMPO DE BUSCA E ROTA DO NOVO ENDEREÇO
-            const enderecoTratado = limparEndereco(endereco);
+            const enderecoTratado = endereco
+                .replace(/(apto|apt|apartamento|bloco|bl|casa|fundos|sobrado|loja|prox|próximo|ao lado).*/gi, '')
+                .replace(/-.*/g, '')
+                .trim();
             const busca = `${enderecoTratado}, ${CIDADE_PADRAO}`;
             
             const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(busca)}`);
@@ -666,7 +703,6 @@ if (btnSimular) {
             const distanciaKm = (dataRota.routes[0].distance / 1000).toFixed(1);
             const tempoTrajetoMin = Math.round(dataRota.routes[0].duration / 60);
 
-            // 2. CONSULTA CARGA DA FILA NO SUPABASE (PENDENTES + EM ROTA)
             const { count: qtdPendentes } = await supabaseClient
                 .from('entregas')
                 .select('*', { count: 'exact', head: true })
@@ -678,8 +714,6 @@ if (btnSimular) {
                 .eq('status', 'Em Rota');
 
             const totalPedidosFila = (qtdPendentes || 0) + (qtdEmRota || 0);
-
-            // Estima o tempo de espera da fila (media de 12 min por pedido na frente distribuídos pela equipe)
             const qtdEntregadoresDisponiveis = Math.max(listaEntregadoresCache.length, 1);
             const tempoEsperaFilaMin = Math.round((totalPedidosFila * 12) / qtdEntregadoresDisponiveis);
 
@@ -704,13 +738,12 @@ if (btnSimular) {
     });
 }
 
-// --- LÓGICA DO DASHBOARD E KPIS ---
+// --- DASHBOARD E KPIS ---
 async function carregarDashboardMetricas() {
     try {
         const inicioHoje = new Date();
         inicioHoje.setHours(0, 0, 0, 0);
 
-        // Busca todas as entregas do dia
         const { data: entregasHoje, error } = await supabaseClient
             .from('entregas')
             .select(`
@@ -729,11 +762,9 @@ async function carregarDashboardMetricas() {
 
         const concluidas = entregasHoje.filter(e => e.status === 'Entregue');
 
-        // 1. KPI: TOTAL CONCLUÍDAS
         const elTotal = document.getElementById('kpi-total-concluidas');
         if (elTotal) elTotal.textContent = concluidas.length;
 
-        // 2. KPI: TEMPO MÉDIO GERAL DE ENTREGA (created_at até horario_entrega)
         let somaMinutosGeral = 0;
         let qtdComHorario = 0;
 
@@ -751,12 +782,10 @@ async function carregarDashboardMetricas() {
         const elTempo = document.getElementById('kpi-tempo-medio');
         if (elTempo) elTempo.textContent = `${tempoMedioGeral} min`;
 
-        // 3. RANKING E PERFORMANCE POR ENTREGADOR
         const statsEntregadores = {};
         const contagemPagamentos = { Pix: 0, Cartao: 0, Dinheiro: 0 };
 
         concluidas.forEach(e => {
-            // Agrupamento por Entregador
             const eId = e.entregador_id || 'sem_id';
             const nomeNome = e.entregadores ? e.entregadores.nome : 'Não informado';
             const veiculo = e.entregadores ? e.entregadores.veiculo_padrao : 'Moto';
@@ -773,14 +802,12 @@ async function carregarDashboardMetricas() {
                 statsEntregadores[eId].qtdRotas += 1;
             }
 
-            // Agrupamento por Forma de Pagamento
             const pag = e.forma_pagamento || '';
             if (pag.includes('Pix')) contagemPagamentos.Pix++;
             else if (pag.includes('Dinheiro')) contagemPagamentos.Dinheiro++;
             else contagemPagamentos.Cartao++;
         });
 
-        // Atualiza KPI Destaque
         let melhorEntregador = null;
         let maxEntregas = -1;
 
@@ -804,7 +831,6 @@ async function carregarDashboardMetricas() {
             }
         }
 
-        // Renderiza Tabela de Ranking
         const tbodyRanking = document.getElementById('tabela-ranking-entregadores');
         if (tbodyRanking) {
             tbodyRanking.innerHTML = '';
@@ -827,7 +853,6 @@ async function carregarDashboardMetricas() {
             }
         }
 
-        // Renderiza Bloco de Pagamentos
         const divPagamentos = document.getElementById('resumo-pagamentos');
         if (divPagamentos) {
             const totalPagos = concluidas.length || 1;
